@@ -2,6 +2,14 @@ import os
 import openai
 from langchain.agents import load_tools
 
+try:
+  openai.api_key = os.environ['OPENAI_API_KEY']
+except KeyError:
+  print("""Please setup an OPENAI_API_KEY secret.
+  - get an openapi secret here:  https://platform.openai.com/account/api-keys
+  - see here on how to setup a secret: https://docs.replit.com/programming-ide/workspace-features/storing-sensitive-information-environment-variables""" )
+  os.exit(1)
+
 class Chat:
   def __init__(self):
     self.messages = []
@@ -37,17 +45,13 @@ class Place:
     self.description = description
 
 
-forest = Place("You are in a forest")
-
-
+forest = "You are in an oak forest. There is a shed."
 
 
 chat = Chat()
-systemPrompt = """"You are a Dungeon Master for a Dungeons & Dragons game. You will be given a brief description of a place in the game. Write a quick paragraph about the place."""
+systemPrompt = "You are a Dungeon Master for a Dungeons & Dragons game. You will be given a brief description of a place in the game. Write a quick paragraph about the place."
 
-prompt = systemPrompt + str(forest)
+prompt = systemPrompt + forest
 
 chat.addSystemContent(prompt)
 chat.talk(prompt)
-
-print("hi")
