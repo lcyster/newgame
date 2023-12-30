@@ -44,14 +44,16 @@ class Place:
   def __init__(self, description):
     self.description = description
 
+  def getDescription(self):
+    return self.description
 
-forest = "You are in an oak forest. There is a shed."
 
+forest = Place("You are in an oak forest. There is a shed.")
 
 chat = Chat()
 systemPrompt = "You are a Dungeon Master for a Dungeons & Dragons game. You will be given a brief description of a place in the game. Write a quick paragraph about the place."
 
-prompt = systemPrompt + forest
+prompt = systemPrompt + forest.getDescription()
 
 chat.addSystemContent(prompt)
 chat.talk(prompt)
