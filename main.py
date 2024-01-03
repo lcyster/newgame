@@ -15,17 +15,20 @@ try:
 except KeyError:
   print("""Please setup an OPENAI_API_KEY secret.
   - get an openapi secret here:  https://platform.openai.com/account/api-keys
-  - see here on how to setup a secret: https://docs.replit.com/programming-ide/workspace-features/storing-sensitive-information-environment-variables""" )
+  - see here on how to setup a secret: https://docs.replit.com/programming-ide/workspace-features/storing-sensitive-information-environment-variables"""
+        )
   os.exit(1)
 
+
 class Chat:
+
   def __init__(self):
     self.messages = []
 
   def addSystemContent(self, content):
     self.addMessage({"role": "system", "content": content})
 
-  def addAssistentContent(self, content):
+  def addAssistantContent(self, content):
     self.addMessage({"role": "assistant", "content": content})
 
   def addUserContent(self, content):
@@ -37,18 +40,18 @@ class Chat:
   def talk(self, content):
     self.addUserContent(content)
 
-    response = openai.chat.completions.create(
-      model = "gpt-3.5-turbo", 
-      messages = self.messages,
-      max_tokens = 200,
-      temperature = 0.9)
+    response = openai.chat.completions.create(model="gpt-3.5-turbo",
+    messages=self.messages,
+    max_tokens=200,
+    temperature=0.9)
 
     message = response.choices[0].message
-    self.addMessage(message);
-
-    print(message.content)
+    self.addMessage(message)
+    return message.content
+      
 
 class Place:
+
   def __init__(self, description, north, south, east, west):
     self.description = description
     self._north = north
@@ -56,76 +59,109 @@ class Place:
     self._east = east
     self._west = west
 
-  def getDescription (self):
+  def getDescription(self):
     return self.description
 
-  def north (self):
+  def north(self):
     return self._north
 
-  def south (self):
+  def south(self):
     return self._south
 
-  def east (self):
+  def east(self):
     return self._east
 
-  def west (self):
-    return self._west 
-  
-  def setNorth (self, north):
+  def west(self):
+    return self._west
+
+  def setNorth(self, north):
     self._north = north
-    
-  def setSouth (self, south):
+
+  def setSouth(self, south):
     self._south = south
 
-  def setEast (self, east):
+  def setEast(self, east):
     self._east = east
 
-  def setWest (self, west):
+  def setWest(self, west):
     self._west = west
 
-#i think i did this wrong bc i ran into an issue later on where nextLocation = location.north didnt exist?
-forest = Place("You are in an oak forest. There is a shed to the north.", None, None, None, None)
-shed = Place("You are inside of a shed. There is a forest to the south.", None, forest, None, None)
+
+#locations
+
+forest = Place(
+    "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.",
+    None, None, None, None)
+shed = Place("The player is inside of a shed. There is a forest to the south.",
+             None, forest, None, None)
 forest.setNorth(shed)
+river = Place(
+    "The player is standing at the bank of a river. There is  forest to the north.",
+    forest, None, None, None)
+forest.setSouth(river)
+clearing = Place(
+    "The player is standing in the middle of a clearing filled with small flowers. To the west is a forest.",
+    None, None, None, forest)
+forest.setEast(clearing)
+rock = Place(
+    "The player is standing at the foot of a huge rock. There is a forest to the east.",
+    None, None, forest, None)
+forest.setWest(rock)
 
 location = forest
 
 chat = Chat()
-systemPrompt = """You are a Dungeon Master for a Dungeons & Dragons game. You will be given a brief description of a place in the game. Write a quick paragraph about the place. If the player states to move towards an area, enter twice and then state the direction. For example:
+systemPrompt = """You are a game master that understands the state of the game through commands. Talk to the player understand there request and turn it into commands that will send you information about the game state. When you have the game state relay it back to the user in plain english.
 
-direction: north"""
+State a commands on a line by itself. The command will intercept your reponse and provide a response you can relay to the user
 
-command = ""
-prompt = forest.getDescription()
+For example:
+@move(north)
 
+The following commands are available:
+@move(direction) - This command changes the player's location. The action @move takes a parameter of direction. The available directions are north and south.
+@describe - This command describes the player's surroundings.
+@location - This command describes the players location
+"""
 
-while command != "quit":
-  
-  chat.addSystemContent(systemPrompt)
-  
+chat.addSystemContent(systemPrompt)
+chat.addAssistantContent("@location")
+chat.addUserContent(location.getDescription())
+
+chat.addAssistantContent("Welcome the player and describe thier location")
+
+prompt = "Hi"
+play = True
+while play:
   answer = chat.talk(prompt)
+    
+  if answer is None:
+    print("(debug.no_answer -> what?)")
+    prompt = "what?"
+    continue
+  elif answer.startswith("@"):  
+      
+    if "@move(north)" in answer:
+      nextLocation = forest.north()
+      if nextLocation is not None:
+        location = nextLocation
+        prompt = "The player moves north."
+      else:
+        prompt = "The player can't go that way."
+    elif "@move(south)" in answer:
+        nextLocation = forest.south()
+        if nextLocation is not None:
+          location = nextLocation
+          prompt = "The player moves south."
+        else:
+          prompt = "The player can't go that way."
+    elif "@location" in answer:
+      prompt = location.getDescription()
+    elif "@describe" in answer:
+      prompt = location.getDescription()
+        
+    print("(debug: " + answer + " -> " + prompt + ")")
+  else:
+    print(answer)
+    prompt = input("> ")
 
-  command = input("> ")
-
-  if "north" in command:
-      nextLocation = shed
-      location = nextLocation
-      print("here.")
-
-  #it doesn't use the tool no matter what
-  def move(location, nextLocation): 
-    nextLocation = forest.north
-    location = nextLocation
-    print(location.getDescription())
-
-  move_tool = Tool.from_function(
-      func=move, 
-      name="Movement Tool",
-      description="useful to move location"
-  )
-
-
-  
-  
-  prompt = location.getDescription() + command
-  print("did not use tool", location.getDescription())
