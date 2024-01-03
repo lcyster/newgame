@@ -52,12 +52,16 @@ class Chat:
 
 class Place:
 
-  def __init__(self, description, north, south, east, west):
+  def __init__(self, name, description, north, south, east, west):
+    self.name = name
     self.description = description
     self._north = north
     self._south = south
     self._east = east
     self._west = west
+
+  def getName(self):
+    return self.name
 
   def getDescription(self):
     return self.description
@@ -89,26 +93,16 @@ class Place:
 
 #locations
 
-forest = Place(
-    "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.",
-    None, None, None, None)
-shed = Place("The player is inside of a shed. There is a forest to the south.",
-             None, forest, None, None)
+forest = Place("Forest", "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.", None, None, None, None)
+shed = Place("Shed", "The player is inside of a shed. There is a forest to the south.", None, forest, None, None)
 forest.setNorth(shed)
-river = Place(
-    "The player is standing at the bank of a river. There is  forest to the north.",
-    forest, None, None, None)
+river = Place("River", "The player is standing at the bank of a river. There is  forest to the north.",
+forest, None, None, None)
 forest.setSouth(river)
-clearing = Place(
-    "The player is standing in the middle of a clearing filled with small flowers. To the west is a forest.",
-    None, None, None, forest)
+clearing = Place("Clearing", "The player is standing in the middle of a clearing filled with small flowers. To the west is a forest.", None, None, None, forest)
 forest.setEast(clearing)
-rock = Place(
-    "The player is standing at the foot of a huge rock. There is a forest to the east.",
-    None, None, forest, None)
+rock = Place("Rock", "The player is standing at the foot of a huge rock. There is a forest to the east.", None, None, forest, None)
 forest.setWest(rock)
-
-location = forest
 
 chat = Chat()
 systemPrompt = """You are a game master that understands the state of the game through commands. Talk to the player understand there request and turn it into commands that will send you information about the game state. When you have the game state relay it back to the user in plain english.
@@ -124,14 +118,19 @@ The following commands are available:
 @location - This command describes the players location
 """
 
+location = forest
+
 chat.addSystemContent(systemPrompt)
 chat.addAssistantContent("@location")
 chat.addUserContent(location.getDescription())
 
 chat.addAssistantContent("Welcome the player and describe thier location")
 
+location = forest
 prompt = "Hi"
 play = True
+
+
 while play:
   answer = chat.talk(prompt)
     
@@ -139,28 +138,20 @@ while play:
     print("(debug.no_answer -> what?)")
     prompt = "what?"
     continue
-  elif answer.startswith("@"):  
-      
-    if "@move(north)" in answer:
-      nextLocation = forest.north()
-      if nextLocation is not None:
-        location = nextLocation
-        prompt = "The player moves north."
+  elif answer.startswith("@"): 
+    if "@move" in answer:
+      direction = answer.split("(")[1].split(")")[0]
+      next_location = getattr(location, direction, None)()
+      if next_location is not None:
+        location = next_location
+        prompt = f"The player moves {direction}, to the {location.getName()}"
       else:
-        prompt = "The player can't go that way."
-    elif "@move(south)" in answer:
-        nextLocation = forest.south()
-        if nextLocation is not None:
-          location = nextLocation
-          prompt = "The player moves south."
-        else:
-          prompt = "The player can't go that way."
-    elif "@location" in answer:
+        prompt = f"The player can't go {direction}"
+    elif "@location" in answer or "@describe" in answer:
       prompt = location.getDescription()
-    elif "@describe" in answer:
-      prompt = location.getDescription()
-        
-    print("(debug: " + answer + " -> " + prompt + ")")
+      print("(debug: " + answer + " -> " + prompt + ")")
+    else:
+      pass
   else:
     print(answer)
     prompt = input("> ")
