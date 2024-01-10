@@ -59,6 +59,7 @@ class Place:
     self._south = south
     self._east = east
     self._west = west
+    self.objects = []
 
   def getName(self):
     return self.name
@@ -90,11 +91,25 @@ class Place:
   def setWest(self, west):
     self._west = west
 
+  def getThings(self):
+    return self.objects
+  
+  def addObject(self, obj):
+    self.objects.append(obj)
+    return (f"{obj} added to {self.name}.")
+  
+  def removeObject(self, obj):
+    if obj in self.objects:
+      self.objects.remove(obj)
+      return (f"{obj} removed from {self.name}.")
+    else:
+      return (f"{obj} not found in {self.name}.")
+
 
 #locations
-
-forest = Place("Forest", "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.", None, None, None, None)
-shed = Place("Shed", "The player is inside of a shed. There is a forest to the south.", None, forest, None, None)
+forest = Place("Forest", "The player is in an oak forest. There is a small golden key in the forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.", None, None, None, None)
+forest.addObject("key")
+shed = Place("Shed", "The player is standing right outside of a shed. The only door in is  locked tightly shut. There is a forest to the south.", None, forest, None, None)
 forest.setNorth(shed)
 river = Place("River", "The player is standing at the bank of a river. There is  forest to the north.",
 forest, None, None, None)
@@ -104,32 +119,35 @@ forest.setEast(clearing)
 rock = Place("Rock", "The player is standing at the foot of a huge rock. There is a forest to the east.", None, None, forest, None)
 forest.setWest(rock)
 
+#chat setup
 chat = Chat()
-systemPrompt = """You are a game master that understands the state of the game through commands. Talk to the player understand there request and turn it into commands that will send you information about the game state. When you have the game state relay it back to the user in plain english.
+systemPrompt = """You are a game master that understands the state of the game through commands. Talk to the player. Turn the player's requests into commands.
 
-State a commands on a line by itself. The command will intercept your reponse and provide a response you can relay to the user
+Print the commands on a line by itself. The command will intercept your reponse and provide a response you can relay to the user. Print the exact description of each location.
+
 
 For example:
 @move(north)
 
 The following commands are available:
 @move(direction) - This command changes the player's location. The action @move takes a parameter of direction. The available directions are north and south.
-@describe - This command describes the player's surroundings.
+@describe - Print the exact description of each location.
 @location - This command describes the players location
+
+You can only respond to the user using the given information about each location. Do not make any information up.
 """
 
 location = forest
 
 chat.addSystemContent(systemPrompt)
 chat.addAssistantContent("@location")
-chat.addUserContent(location.getDescription())
+chat.addUserContent(location.getName())
 
-chat.addAssistantContent("Welcome the player and describe thier location")
+chat.addAssistantContent("Welcome the player and describe their location.")
 
-location = forest
+
 prompt = "Hi"
 play = True
-
 
 while play:
   answer = chat.talk(prompt)
@@ -140,19 +158,21 @@ while play:
     continue
   elif answer.startswith("@"): 
     if "@move" in answer:
+      print("@move reached")
       direction = answer.split("(")[1].split(")")[0]
-      next_location = getattr(location, direction, None)()
+      next_location = getattr(location, direction)()
       if next_location is not None:
+        print("location moved")
         location = next_location
         prompt = f"The player moves {direction}, to the {location.getName()}"
+        print(location.getName())
       else:
         prompt = f"The player can't go {direction}"
     elif "@location" in answer or "@describe" in answer:
-      prompt = location.getDescription()
+      prompt = location.getDescription() + "Only use the given information to describe the player's location."
       print("(debug: " + answer + " -> " + prompt + ")")
     else:
       pass
   else:
     print(answer)
     prompt = input("> ")
-
