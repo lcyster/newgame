@@ -1,7 +1,10 @@
-- add characted description
-- add inventory
-- add more rooms
-- add other characters + object descriptions
+- add characted description??
+- add inventory CHECK!
+- add more rooms CHECK! but can always use more
+- add other characters
+
+- object descriptions? uses, categories, etc
+- character class
 
 
 
@@ -10,3 +13,6 @@ response = openai.chat.completions.create(
   messages = messages_content,
   max_tokens = 200,
   temperature = 0.9)
+
+
+

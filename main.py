@@ -1,3 +1,5 @@
+from collections.abc import ItemsView
+from enum import IntEnum
 import os
 from langchain.agents import load_tools
 from pydantic.networks import EmailStr
@@ -59,7 +61,8 @@ class Place:
     self._south = south
     self._east = east
     self._west = west
-    self.objects = []
+    self.items = []
+    self.inventory = []
 
   def getName(self):
     return self.name
@@ -92,23 +95,37 @@ class Place:
     self._west = west
 
   def getThings(self):
-    return self.objects
+    return self.items
   
-  def addObject(self, obj):
-    self.objects.append(obj)
-    return (f"{obj} added to {self.name}.")
+  def addItem(self, item):
+    self.items.append(item)
+    return (f"{ItemsView} added to {self.name}.")
   
-  def removeObject(self, obj):
-    if obj in self.objects:
-      self.objects.remove(obj)
-      return (f"{obj} removed from {self.name}.")
+  def removeItem(self, item):
+    if item in self.items:
+      self.items.remove(item)
+      return (f"{item} removed from {self.name}.")
     else:
-      return (f"{obj} not found in {self.name}.")
+      return (f"{item} not found in {self.name}.")
+
+  def takeItem(self, item):
+    if item in self.items:
+      self.items.remove(item)
+      self.inventory.append(item)
+      return (f"{item} taken from {self.name} and added into inventory.")
+    else:
+      return (f"{item} not found in {self.name}.")
+
+  def findItem(self, item):
+    if item in self.items:
+      return True
+    else:
+      return False
 
 
 #locations
 forest = Place("Forest", "The player is in an oak forest. There is a small golden key in the forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.", None, None, None, None)
-forest.addObject("key")
+forest.addItem("key")
 shed = Place("Shed", "The player is standing right outside of a shed. The only door in is  locked tightly shut. There is a forest to the south.", None, forest, None, None)
 forest.setNorth(shed)
 river = Place("River", "The player is standing at the bank of a river. There is  forest to the north.",
@@ -123,7 +140,9 @@ forest.setWest(rock)
 chat = Chat()
 systemPrompt = """You are a game master that understands the state of the game through commands. Talk to the player. Turn the player's requests into commands.
 
-Print the commands on a line by itself. The command will intercept your reponse and provide a response you can relay to the user. Print the exact description of each location.
+Print the commands on a line by itself. 
+
+!!!CONFUSING FIX THIS PART!!!The command will intercept your reponse and provide a response you can relay to the user. Print the exact description of each location.
 
 
 For example:
@@ -131,8 +150,10 @@ For example:
 
 The following commands are available:
 @move(direction) - This command changes the player's location. The action @move takes a parameter of direction. The available directions are north and south.
-@describe - Print the exact description of each location.
+@describe - This command prints the exact description of each location.
 @location - This command describes the players location
+@find(item) - This command finds an item in the player's current location. The action @find takes a parameter of item.
+@take(item) - This command takes an item from the player's current location and adds it to their inventory. The action @take takes a parameter of item.
 
 You can only respond to the user using the given information about each location. Do not make any information up.
 """
@@ -165,14 +186,35 @@ while play:
         print("location moved")
         location = next_location
         prompt = f"The player moves {direction}, to the {location.getName()}"
-        print(location.getName())
       else:
         prompt = f"The player can't go {direction}"
+    
     elif "@location" in answer or "@describe" in answer:
       prompt = location.getDescription() + "Only use the given information to describe the player's location."
       print("(debug: " + answer + " -> " + prompt + ")")
+    
+    elif "@find" in answer:
+      item = answer.split("(")[1].split(")")[0]
+      if location.findItem(item) is True:
+        print("item found!!!!")
+        prompt = f"The {item} is in {location.getName()}"
+      elif location.findItem(item) is False:
+        print("item not found!!!!!!")
+        prompt = f"{item} is not found in {location.getName()}"
+      
+    elif "@take" in answer:
+      item = answer.split("(")[1].split(")")[0]
+      if location.findItem(item) is True:
+        print("item taken!!!")
+        location.takeItem(item)
+        prompt = f"The {item} is taken from {location.getName()} and added to the player's inventory."
+      elif location.findItem(item) is False:
+        print("item not taken!!!!")
+        prompt = f"{item} is not found in {location.getName()}"
+          
     else:
       pass
+  
   else:
     print(answer)
     prompt = input("> ")
