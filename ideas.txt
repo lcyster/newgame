@@ -6,13 +6,7 @@
 - object descriptions? uses, categories, etc
 - character class
 
-
-
-response = openai.chat.completions.create(
-  model = "gpt-3.5-turbo", 
-  messages = messages_content,
-  max_tokens = 200,
-  temperature = 0.9)
+- get the ai to run through the list of items to see if there are homologous things within the inventory
 
 
 

@@ -1,4 +1,3 @@
-from collections.abc import ItemsView
 from enum import IntEnum
 import os
 from langchain.agents import load_tools
@@ -50,7 +49,7 @@ class Chat:
     message = response.choices[0].message
     self.addMessage(message)
     return message.content
-      
+
 
 class Place:
 
@@ -61,8 +60,7 @@ class Place:
     self._south = south
     self._east = east
     self._west = west
-    self.items = []
-    self.inventory = []
+    self.things = []
 
   def getName(self):
     return self.name
@@ -95,54 +93,76 @@ class Place:
     self._west = west
 
   def getThings(self):
-    return self.items
+    return self.things
   
-  def addItem(self, item):
-    self.items.append(item)
-    return (f"{ItemsView} added to {self.name}.")
+  def addThings(self, thing):
+    self.things.append(thing)
+    return (f"{thing} dropped in {self.name}.")
   
-  def removeItem(self, item):
-    if item in self.items:
-      self.items.remove(item)
-      return (f"{item} removed from {self.name}.")
+  def removeThings(self, thing):
+    if thing in self.things:
+      self.things.remove(thing)
+      return (f"{thing} removed from {self.name}.")
     else:
-      return (f"{item} not found in {self.name}.")
+      return (f"{thing} not found in {self.name}.")
 
-  def takeItem(self, item):
-    if item in self.items:
-      self.items.remove(item)
-      self.inventory.append(item)
-      return (f"{item} taken from {self.name} and added into inventory.")
-    else:
-      return (f"{item} not found in {self.name}.")
+  def findThings(self, thingName):
+    for thing in self.things:
+      if thing.name == thingName:
+        return thing
+    return None
 
-  def findItem(self, item):
-    if item in self.items:
-      return True
-    else:
-      return False
+  def printInventory(self):
+    if len(self.things) == 0:
+      print("Inventory is empty.")
+    elif len(self.things) >= 1:
+      print("")
 
+class Item:
+  def __init__(self, name, description, category):
+    self.name = name
+    self.description = description
+    self.category = category
+
+  def getName(self):
+    return self.name
+
+  def getDescription(self):
+    return self.description
+
+class Player:
+  pass
+  #work on this over weekend sometime
 
 #locations
-forest = Place("Forest", "The player is in an oak forest. There is a small golden key in the forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.", None, None, None, None)
-forest.addItem("key")
-shed = Place("Shed", "The player is standing right outside of a shed. The only door in is  locked tightly shut. There is a forest to the south.", None, forest, None, None)
+forest = Place("Forest", "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.", None, None, None, None)
+key = Item("key", "A small golden key", "UNKNOWN")
+forest.addThings(key)
+
+shed = Place("Shed", "The player is standing right outside of a shed. There is a door. It is locked. You cannot go through the door. It can only be opened using a key. There is a forest to the south.", None, forest, None, None)
 forest.setNorth(shed)
+
+
 river = Place("River", "The player is standing at the bank of a river. There is  forest to the north.",
 forest, None, None, None)
 forest.setSouth(river)
+
+
 clearing = Place("Clearing", "The player is standing in the middle of a clearing filled with small flowers. To the west is a forest.", None, None, None, forest)
 forest.setEast(clearing)
+
+
 rock = Place("Rock", "The player is standing at the foot of a huge rock. There is a forest to the east.", None, None, forest, None)
 forest.setWest(rock)
 
+
 #chat setup
 chat = Chat()
-systemPrompt = """You are a game master that understands the state of the game through commands. Talk to the player. Turn the player's requests into commands.
+systemPrompt = """You are a narrator that understands the state of the game through commands. Talk to the player. Turn the player's requests into commands.
 
 Print the commands on a line by itself. 
 
-!!!CONFUSING FIX THIS PART!!!The command will intercept your reponse and provide a response you can relay to the user. Print the exact description of each location.
+The command will intercept your reponse and provide a response you can relay to the user. Print the exact description of each location.
 
 
 For example:
@@ -154,11 +174,13 @@ The following commands are available:
 @location - This command describes the players location
 @find(item) - This command finds an item in the player's current location. The action @find takes a parameter of item.
 @take(item) - This command takes an item from the player's current location and adds it to their inventory. The action @take takes a parameter of item.
+@checkInventory - This command prints out the items in the player's inventory.
 
 You can only respond to the user using the given information about each location. Do not make any information up.
 """
 
 location = forest
+inventory = []
 
 chat.addSystemContent(systemPrompt)
 chat.addAssistantContent("@location")
@@ -167,7 +189,7 @@ chat.addUserContent(location.getName())
 chat.addAssistantContent("Welcome the player and describe their location.")
 
 
-prompt = "Hi"
+prompt = "Hi!"
 play = True
 
 while play:
@@ -186,6 +208,8 @@ while play:
         print("location moved")
         location = next_location
         prompt = f"The player moves {direction}, to the {location.getName()}"
+        for items in location.getThings():
+          prompt += f" There is a {items.getName()} here."
       else:
         prompt = f"The player can't go {direction}"
     
@@ -194,21 +218,28 @@ while play:
       print("(debug: " + answer + " -> " + prompt + ")")
     
     elif "@find" in answer:
-      item = answer.split("(")[1].split(")")[0]
-      if location.findItem(item) is True:
+      for item in location.getThings():
+        print(item.getName())
+        
+      itemName = answer.split("(")[1].split(")")[0]
+      print(itemName)
+
+      item = location.findThings(itemName)
+      if item is not None:
         print("item found!!!!")
-        prompt = f"The {item} is in {location.getName()}"
-      elif location.findItem(item) is False:
+        prompt = f"The {itemName} is in {location.getName()}"
+      else:
         print("item not found!!!!!!")
-        prompt = f"{item} is not found in {location.getName()}"
+        prompt = f"{itemName} is not found in {location.getName()}"
       
     elif "@take" in answer:
       item = answer.split("(")[1].split(")")[0]
-      if location.findItem(item) is True:
+      if location.findThings(item):
         print("item taken!!!")
-        location.takeItem(item)
+        location.removeThings(item)
+        inventory.append(item)
         prompt = f"The {item} is taken from {location.getName()} and added to the player's inventory."
-      elif location.findItem(item) is False:
+      elif not location.findThings(item):
         print("item not taken!!!!")
         prompt = f"{item} is not found in {location.getName()}"
           
