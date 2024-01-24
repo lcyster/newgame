@@ -1,12 +1,17 @@
 - add characted description??
-- add inventory CHECK!
 - add more rooms CHECK! but can always use more
 - add other characters
 
 - object descriptions? uses, categories, etc
 - character class
 
+- how to make entrance of the shed locked so that you can enter the shed?
+
 - get the ai to run through the list of items to see if there are homologous things within the inventory
+
+
+finished -- 
+- add inventory
 
 
 

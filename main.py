@@ -21,6 +21,7 @@ except KeyError:
   os.exit(1)
 
 
+
 class Chat:
 
   def __init__(self):
@@ -49,7 +50,6 @@ class Chat:
     message = response.choices[0].message
     self.addMessage(message)
     return message.content
-
 
 class Place:
 
@@ -130,31 +130,65 @@ class Item:
   def getDescription(self):
     return self.description
 
-class Player:
-  pass
-  #work on this over weekend sometime
+class Character:
+  def __init__(self, name, species, description):
+    self.name = name
+    self.species = species
+    self.description = description
 
-#locations
+  def getName(self):
+    #would it be confusing to write getName for both item and character?
+    return self.name
+
+  def getSpecies(self):
+    return self.species
+
+  def getDescription(self):
+    return self.description
+
+class Mob:
+  #difference between mob and character: mob cannot speak; are enemies that can just fight. characters can interact w player
+  def __init__(self, name, description, health, damage):
+    self.name = name
+    self.description = description
+    self.health = health
+    self.damage = damage
+
+  def getName(self):
+    return self.name
+
+  def getDescription(self):
+    return self.description
+
+  def getHealth(self):
+    return self.health
+
+  def getDamage(self):
+    return self.damage
+
+
 forest = Place("Forest", "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.", None, None, None, None)
-key = Item("key", "A small golden key", "UNKNOWN")
+key = Item("key", "A small golden key used to unlock the door to the shed", "keys")
 forest.addThings(key)
 
-shed = Place("Shed", "The player is standing right outside of a shed. There is a door. It is locked. You cannot go through the door. It can only be opened using a key. There is a forest to the south.", None, forest, None, None)
+shed = Place("Shed", "The player is standing right outside of a shed. There is a door. The door is locked shut. You cannot go through the door because it is locked shut. You cannot see inside because the door is locked shut. There is a forest to the south.", None, forest, None, None)
 forest.setNorth(shed)
+hoe = Item("gardening hoe", "An old hoe used to garden crops, but can also be used as a weapon. Found inside the locked shed. Can only be seen and accessed after using the key.", "weapons")
+shed.addThings(hoe)
+#how do i make it so that the sword can only be found when you open the door and go inside the shed? can i make it so that 
 
 
 river = Place("River", "The player is standing at the bank of a river. There is  forest to the north.",
 forest, None, None, None)
 forest.setSouth(river)
-
+boar = Mob("Boar", "A large, black aggressive boar", "15", "5")
+river.addThings(boar)
 
 clearing = Place("Clearing", "The player is standing in the middle of a clearing filled with small flowers. To the west is a forest.", None, None, None, forest)
 forest.setEast(clearing)
 
-
 rock = Place("Rock", "The player is standing at the foot of a huge rock. There is a forest to the east.", None, None, forest, None)
 forest.setWest(rock)
-
 
 #chat setup
 chat = Chat()
@@ -185,9 +219,7 @@ inventory = []
 chat.addSystemContent(systemPrompt)
 chat.addAssistantContent("@location")
 chat.addUserContent(location.getName())
-
 chat.addAssistantContent("Welcome the player and describe their location.")
-
 
 prompt = "Hi!"
 play = True
@@ -197,19 +229,27 @@ while play:
     
   if answer is None:
     print("(debug.no_answer -> what?)")
-    prompt = "what?"
+    prompt = "What?"
     continue
+  
   elif answer.startswith("@"): 
     if "@move" in answer:
-      print("@move reached")
-      direction = answer.split("(")[1].split(")")[0]
-      next_location = getattr(location, direction)()
+      try: 
+        direction = answer.split("(")[1].split(")")
+        print("@move reached ", direction)
+        next_location = getattr(location, direction)()[0]
+      except IndexError:  
+        prompt = "What?"
+        continue
+
       if next_location is not None:
-        print("location moved")
         location = next_location
         prompt = f"The player moves {direction}, to the {location.getName()}"
+
         for items in location.getThings():
-          prompt += f" There is a {items.getName()} here."
+          prompt += f" There is a {items.getDescription()} here."
+
+        print (prompt, "\n")
       else:
         prompt = f"The player can't go {direction}"
     
@@ -217,32 +257,31 @@ while play:
       prompt = location.getDescription() + "Only use the given information to describe the player's location."
       print("(debug: " + answer + " -> " + prompt + ")")
     
-    elif "@find" in answer:
+    elif "@find" or "@take" in answer:
       for item in location.getThings():
         print(item.getName())
         
-      itemName = answer.split("(")[1].split(")")[0]
-      print(itemName)
+      try: 
+        itemName = answer.split("(")[1].split(")")[0]
+        print(itemName)
+      except IndexError:  
+        prompt = "What?"
+        break
 
       item = location.findThings(itemName)
       if item is not None:
-        print("item found!!!!")
-        prompt = f"The {itemName} is in {location.getName()}"
-      else:
-        print("item not found!!!!!!")
-        prompt = f"{itemName} is not found in {location.getName()}"
-      
-    elif "@take" in answer:
-      item = answer.split("(")[1].split(")")[0]
-      if location.findThings(item):
-        print("item taken!!!")
-        location.removeThings(item)
+        location.removeThings(itemName)
         inventory.append(item)
         prompt = f"The {item} is taken from {location.getName()} and added to the player's inventory."
-      elif not location.findThings(item):
-        print("item not taken!!!!")
+      else:
         prompt = f"{item} is not found in {location.getName()}"
-          
+
+    elif "@checkInventory" in answer:
+      prompt = "The player's inventory contains: "
+      
+      for item in inventory:
+        prompt += (item)
+        
     else:
       pass
   
