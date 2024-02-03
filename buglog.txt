@@ -1,3 +1,14 @@
+- player is not expected to type "@move"
+- fix player so that it just says a couple words
+
+
+
+
+
+
+
+
+
 - adding the item with the "find" command; should i even have a "find" and a "take" command or should i make them the same thing and add a drop command
 - adding any item in your location into your inventory (probably an error with the difference between location inventory and player inventory?)
 - "key" caps lock and having other names for the same item
@@ -20,3 +31,4 @@ Congratulations! You have found a key in the forest. You pick it up and add it t
 
 
 - there's some sort of error with the find/take and the check inventory function. for some reason it won't pick up the key from inside the location and it confuses "check inventory" with the @find command
+ --- should be fixed

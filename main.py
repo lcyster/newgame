@@ -10,6 +10,7 @@ from langchain.chat_models.openai import ChatOpenAI
 from langchain.tools import BaseTool, StructuredTool, Tool, tool
 from langchain.chains.llm_math.base import LLMMathChain
 from langchain.memory import ConversationBufferMemory
+import time
 
 try:
   openai.api_key = os.environ['OPENAI_API_KEY']
@@ -19,7 +20,6 @@ except KeyError:
   - see here on how to setup a secret: https://docs.replit.com/programming-ide/workspace-features/storing-sensitive-information-environment-variables"""
         )
   os.exit(1)
-
 
 
 class Chat:
@@ -43,13 +43,14 @@ class Chat:
     self.addUserContent(content)
 
     response = openai.chat.completions.create(model="gpt-3.5-turbo",
-    messages=self.messages,
-    max_tokens=200,
-    temperature=0.9)
+                                              messages=self.messages,
+                                              max_tokens=200,
+                                              temperature=0.9)
 
     message = response.choices[0].message
     self.addMessage(message)
     return message.content
+
 
 class Place:
 
@@ -94,11 +95,11 @@ class Place:
 
   def getThings(self):
     return self.things
-  
+
   def addThings(self, thing):
     self.things.append(thing)
     return (f"{thing} dropped in {self.name}.")
-  
+
   def removeThings(self, thing):
     if thing in self.things:
       self.things.remove(thing)
@@ -118,7 +119,9 @@ class Place:
     elif len(self.things) >= 1:
       print("")
 
+
 class Item:
+
   def __init__(self, name, description, category):
     self.name = name
     self.description = description
@@ -130,14 +133,17 @@ class Item:
   def getDescription(self):
     return self.description
 
+
 class Character:
-  def __init__(self, name, species, description):
+
+  def __init__(self, name, species, description, location):
     self.name = name
     self.species = species
     self.description = description
+    self.location = location
+    self.inventory = []
 
   def getName(self):
-    #would it be confusing to write getName for both item and character?
     return self.name
 
   def getSpecies(self):
@@ -146,13 +152,20 @@ class Character:
   def getDescription(self):
     return self.description
 
+  def getInventory(self):
+    prompt = f"{self.name} has the following items in their inventory: "
+    for item in self.inventory:
+      prompt += f"{item}, "
+
+
 class Mob:
   #difference between mob and character: mob cannot speak; are enemies that can just fight. characters can interact w player
-  def __init__(self, name, description, health, damage):
+  def __init__(self, name, description, health, damage, hostility):
     self.name = name
     self.description = description
     self.health = health
     self.damage = damage
+    self.hostility = hostility
 
   def getName(self):
     return self.name
@@ -167,27 +180,49 @@ class Mob:
     return self.damage
 
 
-forest = Place("Forest", "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.", None, None, None, None)
-key = Item("key", "A small golden key used to unlock the door to the shed", "keys")
+forest = Place(
+    "Forest",
+    "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.",
+    None, None, None, None)
+key = Item("key", "A small golden key used to unlock the door to the shed",
+           "keys")
 forest.addThings(key)
 
-shed = Place("Shed", "The player is standing right outside of a shed. There is a door. The door is locked shut. You cannot go through the door because it is locked shut. You cannot see inside because the door is locked shut. There is a forest to the south.", None, forest, None, None)
+shed = Place(
+    "Shed",
+    "The player is standing right outside of a shed. There is a door. The door is locked shut. You cannot go through the door because it is locked shut. You cannot see inside because the door is locked shut. There is a forest to the south.",
+    None, forest, None, None)
 forest.setNorth(shed)
-hoe = Item("gardening hoe", "An old hoe used to garden crops, but can also be used as a weapon. Found inside the locked shed. Can only be seen and accessed after using the key.", "weapons")
+hoe = Item(
+    "gardening hoe",
+    "An old hoe used to garden crops, but can also be used as a weapon. Found inside the locked shed. Can only be seen and accessed after using the key.",
+    "weapons")
 shed.addThings(hoe)
-#how do i make it so that the sword can only be found when you open the door and go inside the shed? can i make it so that 
+#how do i make it so that the sword can only be found when you open the door and go inside the shed? can i make it so that
 
-
-river = Place("River", "The player is standing at the bank of a river. There is  forest to the north.",
-forest, None, None, None)
+river = Place(
+    "River",
+    "The player is standing at the bank of a river. There is  forest to the north.",
+    forest, None, None, None)
 forest.setSouth(river)
-boar = Mob("Boar", "A large, black aggressive boar", "15", "5")
+boar = Mob("Boar", "A large, black aggressive boar", "15", "5", True)
 river.addThings(boar)
 
-clearing = Place("Clearing", "The player is standing in the middle of a clearing filled with small flowers. To the west is a forest.", None, None, None, forest)
+clearing = Place(
+    "Clearing",
+    "The player is standing in the middle of a clearing filled with small flowers. To the west is a forest.",
+    None, None, None, forest)
 forest.setEast(clearing)
+Lyra = Character("Lyra", "elf",
+                 "An elven girl with white hair and pointed ears.", "clearing")
+#how to make it so that the player can talk
+#how to set as a thing in the location? should i just use addThings like i do with items or should i set it as something different?
+clearing.addThings(Lyra)
 
-rock = Place("Rock", "The player is standing at the foot of a huge rock. There is a forest to the east.", None, None, forest, None)
+rock = Place(
+    "Rock",
+    "The player is standing at the foot of a huge rock. There is a forest to the east.",
+    None, None, forest, None)
 forest.setWest(rock)
 
 #chat setup
@@ -204,9 +239,7 @@ For example:
 
 The following commands are available:
 @move(direction) - This command changes the player's location. The action @move takes a parameter of direction. The available directions are north and south.
-@describe - This command prints the exact description of each location.
-@location - This command describes the players location
-@find(item) - This command finds an item in the player's current location. The action @find takes a parameter of item.
+@describe or @location - This command prints the exact description of each location.
 @take(item) - This command takes an item from the player's current location and adds it to their inventory. The action @take takes a parameter of item.
 @checkInventory - This command prints out the items in the player's inventory.
 
@@ -221,25 +254,31 @@ chat.addAssistantContent("@location")
 chat.addUserContent(location.getName())
 chat.addAssistantContent("Welcome the player and describe their location.")
 
+player = Chat()
+systemPrompt = "You are an adventuerer in a text based game. You are in a forest. You can move north, south, east, and"
+player.addSystemContent(systemPrompt)
+
 prompt = "Hi!"
 play = True
 
 while play:
   answer = chat.talk(prompt)
-    
+
   if answer is None:
     print("(debug.no_answer -> what?)")
     prompt = "What?"
     continue
-  
-  elif answer.startswith("@"): 
+
+  elif answer.startswith("@"):
+
     if "@move" in answer:
-      try: 
-        direction = answer.split("(")[1].split(")")
-        print("@move reached ", direction)
+      try:
+        direction = str(answer.split("(")[1].split(")"))
+        print(direction)
         next_location = getattr(location, direction)()[0]
-      except IndexError:  
-        prompt = "What?"
+
+      except (IndexError, AttributeError):
+        prompt = "Always print a move command in the format move(direction)."
         continue
 
       if next_location is not None:
@@ -249,24 +288,29 @@ while play:
         for items in location.getThings():
           prompt += f" There is a {items.getDescription()} here."
 
-        print (prompt, "\n")
+          if isinstance(item, Mob) and item.hostility():
+            prompt += f" A {item.getName()} attacked you! It has {item.getDamage()} damage."
+
+        print(prompt, "\n")
+
       else:
         prompt = f"The player can't go {direction}"
-    
+
     elif "@location" in answer or "@describe" in answer:
-      prompt = location.getDescription() + "Only use the given information to describe the player's location."
+      prompt = location.getDescription(
+      ) + "Only use the given information to describe the player's location."
       print("(debug: " + answer + " -> " + prompt + ")")
-    
+
     elif "@find" or "@take" in answer:
       for item in location.getThings():
         print(item.getName())
-        
-      try: 
+
+      try:
         itemName = answer.split("(")[1].split(")")[0]
         print(itemName)
-      except IndexError:  
+      except IndexError:
         prompt = "What?"
-        break
+        continue
 
       item = location.findThings(itemName)
       if item is not None:
@@ -278,13 +322,26 @@ while play:
 
     elif "@checkInventory" in answer:
       prompt = "The player's inventory contains: "
-      
+
       for item in inventory:
         prompt += (item)
-        
+
+    elif "@talk" in answer:
+      try:
+        characterName = answer.split("(")[1].split(")")[0]
+        print(characterName)
+      except IndexError:
+        prompt = "What?"
+        continue
+
+      #dialogue = Talk.talk(characterName)
+
     else:
       pass
-  
+
   else:
-    print(answer)
-    prompt = input("> ")
+    print("\033[1mNarrator:\033[0m ", answer, "\n")
+    # prompt = input("> ")
+    prompt = player.talk(answer)
+    print("> ", prompt)
+    time.sleep(1.5)

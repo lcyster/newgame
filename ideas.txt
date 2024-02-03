@@ -2,16 +2,36 @@
 - add more rooms CHECK! but can always use more
 - add other characters
 
+- adding dialogue to characters
+
 - object descriptions? uses, categories, etc
 - character class
 
 - how to make entrance of the shed locked so that you can enter the shed?
+-- shed needs to support a command "unlock" or something
+-- to move to an area and go north/south/east/west/unlock or something
+-- to tell it the things you can do and where it is
+-- change shed to object?
+
+
+
+
+
+- manage the commands
+-- either shed is an object, or there is a thing that is objects/places
+-- whenever in location: "for all objects at location, these objects support this command"
+--- some would be "pick up", some would be "unlock" or "enter"
+---- then would have new objects
+--- universe would then describe itself by saying "in this location, you can preform these commands"
+
+
+
 
 - get the ai to run through the list of items to see if there are homologous things within the inventory
 
 
+
+
+
 finished -- 
 - add inventory
-
-
-
