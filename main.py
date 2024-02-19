@@ -1,5 +1,4 @@
 from enum import IntEnum
-import os
 from langchain.agents import load_tools
 from pydantic.networks import EmailStr
 import openai
@@ -11,45 +10,9 @@ from langchain.tools import BaseTool, StructuredTool, Tool, tool
 from langchain.chains.llm_math.base import LLMMathChain
 from langchain.memory import ConversationBufferMemory
 import time
+import re
 
-try:
-  openai.api_key = os.environ['OPENAI_API_KEY']
-except KeyError:
-  print("""Please setup an OPENAI_API_KEY secret.
-  - get an openapi secret here:  https://platform.openai.com/account/api-keys
-  - see here on how to setup a secret: https://docs.replit.com/programming-ide/workspace-features/storing-sensitive-information-environment-variables"""
-        )
-  os.exit(1)
-
-
-class Chat:
-
-  def __init__(self):
-    self.messages = []
-
-  def addSystemContent(self, content):
-    self.addMessage({"role": "system", "content": content})
-
-  def addAssistantContent(self, content):
-    self.addMessage({"role": "assistant", "content": content})
-
-  def addUserContent(self, content):
-    self.addMessage({"role": "user", "content": content})
-
-  def addMessage(self, message):
-    self.messages.append(message)
-
-  def talk(self, content):
-    self.addUserContent(content)
-
-    response = openai.chat.completions.create(model="gpt-3.5-turbo",
-                                              messages=self.messages,
-                                              max_tokens=200,
-                                              temperature=0.9)
-
-    message = response.choices[0].message
-    self.addMessage(message)
-    return message.content
+from chat import Chat
 
 
 class Place:
@@ -180,6 +143,73 @@ class Mob:
     return self.damage
 
 
+class Toolbox:
+
+  def __init__(self):
+    self.tools = []
+    self.pattern = re.compile(
+        r'@(?P<command_name>\w+)(\((?P<parameter>[^)]*)\))?')
+
+  def perform(self, toolPrompt):
+    print("Toolbox: ", toolPrompt, "\n")
+    match = self.pattern.search(toolPrompt)
+    response = ""
+
+    if match:
+      command = match.group('command_name')
+      parameter = match.group('parameter')
+
+      for tool in self.tools:
+        if command == tool.getName():
+          response = response + tool.perform(parameter) + "\n"
+
+    return response
+
+  def getTools(self):
+    return self.tools
+
+  def addTool(self, tool):
+    self.tools.append(tool)
+
+
+class HelpTool:
+
+  def __init__(self, toolbox):
+    self.toolbox = toolbox
+
+  def getName(self):
+    return "help"
+
+  def getDescription(self):
+    return "lists available tools."
+
+  def perform(self, parameters):
+    response = "The following are the available command. \n"
+    for tool in toolbox.getTools():
+      response += f"  @{tool.getName()}: {tool.getDescription()} \n"
+
+    print("!! helpTool: " + response)
+    return response
+
+
+class MoveTool:
+
+  def __init__(self):
+    pass
+  
+  def getName(self):
+    return "move(direction)"
+  
+  def getDescription(self):
+    return "moves the player location in direction north, south, east or west."
+  
+  def perform(self, parameters):
+    print("move:", parameters)
+    return "you tried to move"
+
+
+
+
 forest = Place(
     "Forest",
     "The player is in an oak forest. There is a shed to the north. There is a river to the south. There is a clearing to the east. There is a rock to the west.",
@@ -229,21 +259,8 @@ forest.setWest(rock)
 chat = Chat()
 systemPrompt = """You are a narrator that understands the state of the game through commands. Talk to the player. Turn the player's requests into commands.
 
-Print the commands on a line by itself. 
+Commands are in the form @command(parameters). Where the brackets and parameters are optional if there are no parameters.
 
-The command will intercept your reponse and provide a response you can relay to the user. Print the exact description of each location.
-
-
-For example:
-@move(north)
-
-The following commands are available:
-@move(direction) - This command changes the player's location. The action @move takes a parameter of direction. The available directions are north and south.
-@describe or @location - This command prints the exact description of each location.
-@take(item) - This command takes an item from the player's current location and adds it to their inventory. The action @take takes a parameter of item.
-@checkInventory - This command prints out the items in the player's inventory.
-
-You can only respond to the user using the given information about each location. Do not make any information up.
 """
 
 location = forest
@@ -255,93 +272,32 @@ chat.addUserContent(location.getName())
 chat.addAssistantContent("Welcome the player and describe their location.")
 
 player = Chat()
-systemPrompt = "You are an adventuerer in a text based game. You are in a forest. You can move north, south, east, and"
+systemPrompt = "You are an adventuerer in a text based game. You are in a forest. You can move north, south, east, and west."
 player.addSystemContent(systemPrompt)
 
-prompt = "Hi!"
+prompt = "Use the @help command."
 play = True
+toolbox = Toolbox()
+
+toolbox.addTool(HelpTool(toolbox))
+toolbox.addTool(MoveTool())
+
+
 
 while play:
+  print(f"prompt: {prompt}")
   answer = chat.talk(prompt)
-
+  print(f"answer: {answer}")
+  
   if answer is None:
     print("(debug.no_answer -> what?)")
     prompt = "What?"
     continue
 
-  elif answer.startswith("@"):
+  prompt = ""
+  prompt += toolbox.perform(answer) + "\n"
 
-    if "@move" in answer:
-      try:
-        direction = str(answer.split("(")[1].split(")"))
-        print(direction)
-        next_location = getattr(location, direction)()[0]
-
-      except (IndexError, AttributeError):
-        prompt = "Always print a move command in the format move(direction)."
-        continue
-
-      if next_location is not None:
-        location = next_location
-        prompt = f"The player moves {direction}, to the {location.getName()}"
-
-        for items in location.getThings():
-          prompt += f" There is a {items.getDescription()} here."
-
-          if isinstance(item, Mob) and item.hostility():
-            prompt += f" A {item.getName()} attacked you! It has {item.getDamage()} damage."
-
-        print(prompt, "\n")
-
-      else:
-        prompt = f"The player can't go {direction}"
-
-    elif "@location" in answer or "@describe" in answer:
-      prompt = location.getDescription(
-      ) + "Only use the given information to describe the player's location."
-      print("(debug: " + answer + " -> " + prompt + ")")
-
-    elif "@find" or "@take" in answer:
-      for item in location.getThings():
-        print(item.getName())
-
-      try:
-        itemName = answer.split("(")[1].split(")")[0]
-        print(itemName)
-      except IndexError:
-        prompt = "What?"
-        continue
-
-      item = location.findThings(itemName)
-      if item is not None:
-        location.removeThings(itemName)
-        inventory.append(item)
-        prompt = f"The {item} is taken from {location.getName()} and added to the player's inventory."
-      else:
-        prompt = f"{item} is not found in {location.getName()}"
-
-    elif "@checkInventory" in answer:
-      prompt = "The player's inventory contains: "
-
-      for item in inventory:
-        prompt += (item)
-
-    elif "@talk" in answer:
-      try:
-        characterName = answer.split("(")[1].split(")")[0]
-        print(characterName)
-      except IndexError:
-        prompt = "What?"
-        continue
-
-      #dialogue = Talk.talk(characterName)
-
-    else:
-      pass
-
-  else:
-    print("\033[1mNarrator:\033[0m ", answer, "\n")
-    # prompt = input("> ")
-    prompt = player.talk(answer)
-    print("> ", prompt)
-    time.sleep(1.5)
+  print("\033[1mNarrator:\033[0m ", answer, "\n")
+  prompt += input("> ") + "\n"
+  print("> ", prompt)
+  time.sleep(1.5)

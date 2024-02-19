@@ -14,6 +14,16 @@
 -- change shed to object?
 
 
+For example:
+@move(north)
+
+The following are the command formatting:
+@move(direction) - This command changes the player's location. The action @move takes a parameter of direction. The available directions are north and south.
+@describe or @location - This command prints the exact description of each location.
+@take(item) - This command takes an item from the player's current location and adds it to their inventory. The action @take takes a parameter of item.
+@checkInventory - This command prints out the items in the player's inventory.
+
+
 
 
 
